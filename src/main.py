@@ -1,21 +1,38 @@
 # main.py
+import os
 import pygame
 import random
 from settings import WIDTH, HEIGHT, LIGHT_BLUE
 from classes import Basket, Fruit, Bomb
 from utils import load_sound
 
+# Set the SDL audio driver to 'dummy' to handle audio issues in WSL
+os.environ['SDL_AUDIODRIVER'] = 'dummy'
+
 def main():
     pygame.init()
+
+    # Try to initialize the mixer
+    try:
+        pygame.mixer.init()
+        mixer_available = True
+    except pygame.error:
+        print("Mixer initialization failed, disabling sound.")
+        mixer_available = False
+
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Fruit Catcher")
     clock = pygame.time.Clock()
 
-    # Load sounds
-    catch_sound = load_sound('catch.wav')
-    bomb_sound = load_sound('bomb.wav')
-    pygame.mixer.music.load(os.path.join('..', 'assets', 'sounds', 'background_music.mp3'))
-    pygame.mixer.music.play(-1)  # Loop indefinitely
+    # Load sounds if mixer is available
+    if mixer_available:
+        catch_sound = load_sound('catch.wav')
+        bomb_sound = load_sound('bomb.wav')
+        pygame.mixer.music.load(os.path.join('..', 'assets', 'sounds', 'background_music.wav'))
+        pygame.mixer.music.play(-1)  # Loop indefinitely
+    else:
+        catch_sound = None
+        bomb_sound = None
 
     # Groups
     all_sprites = pygame.sprite.Group()
@@ -54,19 +71,21 @@ def main():
                     bombs.add(bomb)
 
         # Update
-        all_sprites.update(keys)
+        basket.update(keys)
+        fruits.update()
+        bombs.update()
 
         # Check collisions
         fruit_hits = pygame.sprite.spritecollide(basket, fruits, True)
         for hit in fruit_hits:
             score += 10
-            if catch_sound:
+            if mixer_available and catch_sound:
                 catch_sound.play()
 
         bomb_hits = pygame.sprite.spritecollide(basket, bombs, True)
         for hit in bomb_hits:
             lives -= 1
-            if bomb_sound:
+            if mixer_available and bomb_sound:
                 bomb_sound.play()
             if lives <= 0:
                 running = False  # Game over
@@ -84,3 +103,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
